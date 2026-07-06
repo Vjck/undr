@@ -3876,54 +3876,73 @@ function startLandingAnimation() {
   var startTime = null;
   var rafId = null;
 
-  // INTRO "l'EQ costruisce il logo": prima le barre che pompano,
-  // poi le lettere U-N-D-R scivolano fuori una a una, chiude la riga sotto.
+  // Dopo il takeover TV ("SEGNALE INTERCETTATO"): il logo SBATTE dentro con la scossa,
+  // le barre EQ pompano, la riga chiude, poi sale il form.
   var letters = ['U', 'N', 'D', 'R'];
   var letterColor = ['#f0f0f0', '#f0f0f0', '#c8f53a', '#c8f53a'];
   var letterW = letters.map(function(ch) { return ctx.measureText(ch).width; });
   var letterX = [];
   (function() { var lx = textLeft; for (var i = 0; i < letters.length; i++) { letterX[i] = lx; lx += letterW[i]; } })();
+  function easeOutBack(t) { var c = 1.8; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+  var lockMidY = cy - FS * 0.35;
 
   function draw(ts) {
+    // finché l'intro TV (boot screen) è in onda, lo slam aspetta a schermo libero
+    var bsEl = document.getElementById('boot-screen');
+    if (bsEl && !bsEl.classList.contains('off')) {
+      startTime = null;
+      rafId = requestAnimationFrame(draw);
+      return;
+    }
     if (!startTime) startTime = ts;
     var now = ts - startTime;
     ctx.clearRect(0, 0, W, H);
 
-    // 1) le barre EQ nascono una alla volta e pompano da subito
+    var pSlam = prog(now, 60, 380);
+    if (pSlam <= 0) { rafId = requestAnimationFrame(draw); return; }
+    var scale = lerp(3.4, 1, easeOutBack(pSlam));
+    var alpha = Math.min(1, pSlam * 2.5);
+
+    // scossa d'impatto
+    var dx = 0, dy = 0;
+    if (pSlam >= 1 && now < 700) {
+      var sh = (700 - now) / 320;
+      dx = (Math.random() - .5) * 10 * sh;
+      dy = (Math.random() - .5) * 7 * sh;
+    }
+
+    ctx.save();
+    ctx.translate(cx + dx, lockMidY + dy);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -lockMidY);
+    ctx.globalAlpha = alpha;
+
+    // barre EQ che pompano
     var capH = FS * 0.62;
     var phases = [0, 0.9, 0.45, 1.6];
     var speeds = [1.0, 1.35, 0.8, 1.15];
     ctx.fillStyle = '#c8f53a';
     for (var b = 0; b < barN; b++) {
-      var pBar = easeOut(prog(now, 150 + b * 140, 430 + b * 140));
-      if (pBar <= 0) continue;
-      ctx.globalAlpha = pBar;
       var hh = capH * (0.22 + 0.78 * Math.abs(Math.sin(now / 1000 * speeds[b] * Math.PI + phases[b])));
-      hh *= (0.35 + 0.65 * pBar);
       ctx.fillRect(lockLeft + b * (barW + barGap), horizY - hh, barW, hh);
     }
-
-    // 2) le lettere scivolano fuori dalle barre, una a una
+    // wordmark
     ctx.font = '700 ' + FS + 'px "Space Mono",monospace';
     ctx.textBaseline = 'alphabetic';
     for (var i = 0; i < letters.length; i++) {
-      var pL = easeOut(prog(now, 850 + i * 260, 1220 + i * 260));
-      if (pL <= 0) continue;
-      ctx.globalAlpha = pL;
       ctx.fillStyle = letterColor[i];
-      ctx.fillText(letters[i], letterX[i] - (1 - pL) * FS * 0.42, horizY);
+      ctx.fillText(letters[i], letterX[i], horizY);
     }
-
-    // 3) la riga chiude il lockup
-    var pLine = easeOut(prog(now, 2050, 2700));
+    // riga sotto
+    var pLine = easeOut(prog(now, 420, 900));
     if (pLine > 0) {
-      var lineY = horizY + FS * 0.18;
-      ctx.globalAlpha = Math.min(pLine * 3, 1);
+      ctx.globalAlpha = alpha * Math.min(pLine * 3, 1);
       ctx.fillStyle = '#c8f53a';
-      ctx.fillRect(textLeft, lineY, lerp(0, totalW, pLine), Math.max(1.5, FS*0.038));
+      ctx.fillRect(textLeft, horizY + FS * 0.18, lerp(0, totalW, pLine), Math.max(1.5, FS*0.038));
     }
+    ctx.restore();
 
-    var pForm = easeOut(prog(now, 2250, 3250));
+    var pForm = easeOut(prog(now, 480, 1380));
 
 
 
@@ -4561,42 +4580,88 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
 // ══ UNDR BROADCAST SKIN — boot, static, channel, blip ══
 (function() {
 
-  // ── BOOT SEQUENCE (una volta per sessione, tap per saltare) ──
+  // ── INTRO "IL SEGNALE PIRATA": TV in B/N → glitch → SEGNALE INTERCETTATO → landing ──
+  // Una volta per sessione, tap per saltare. Chi ha la sessione salvata la salta del tutto.
   function runBoot() {
     var bs = document.getElementById('boot-screen');
     if (!bs) return;
-    var seen = false;
+    var seen = false, hasSession = false;
     try { seen = !!sessionStorage.getItem('undr-booted'); } catch(e) {}
-    if (seen) { bs.remove(); return; }
-    var lines = [
-      'UNDR BROADCAST SYSTEM v2.0',
-      'init signal .......... OK',
-      'tuning p2p mesh ...... OK',
-      'no server ............ OK',
-      'no log ............... OK',
-      'ON AIR'
-    ];
-    var log = document.getElementById('boot-log');
-    var i = 0, done = false;
+    try { hasSession = !!localStorage.getItem('undr-last-session'); } catch(e) {}
+    if (seen || hasSession) { bs.remove(); return; }
+    var timers = [], intervals = [], done = false;
+    function T(fn, ms) { timers.push(setTimeout(fn, ms)); }
+    function el(tag, css, html) { var e = document.createElement(tag); if (css) e.style.cssText = css; if (html !== undefined) e.innerHTML = html; return e; }
+    bs.innerHTML = '';
+    bs.style.overflow = 'hidden';
+    // monoscopio in bianco e nero (scala di grigi da TV d'epoca)
+    var tv = el('div', 'position:absolute;inset:0;');
+    var top = el('div', 'position:absolute;inset:0 0 30% 0;display:flex;');
+    ['#ffffff','#dbdbdb','#b6b6b6','#909090','#6a6a6a','#444444','#1c1c1c'].forEach(function(c) { top.appendChild(el('div', 'flex:1;background:' + c + ';')); });
+    tv.appendChild(top);
+    var low = el('div', 'position:absolute;left:0;right:0;bottom:0;height:30%;display:flex;');
+    ['#060606','#303030','#0f0f0f','#4e4e4e','#0f0f0f','#7a7a7a','#f2f2f2'].forEach(function(c) { low.appendChild(el('div', 'flex:1;background:' + c + ';')); });
+    tv.appendChild(low);
+    tv.appendChild(el('div', 'position:absolute;top:7%;left:0;right:0;text-align:center;font-family:var(--mono);font-size:12px;color:#111;background:rgba(255,255,255,0.78);padding:5px;letter-spacing:0.2em;', 'PROGRAMMA 1 · TRASMISSIONE REGOLARE'));
+    var clock = el('div', 'position:absolute;bottom:34%;left:0;right:0;text-align:center;font-family:var(--mono);font-size:30px;color:#fff;text-shadow:2px 2px 0 #000;');
+    clock.textContent = new Date().toLocaleTimeString('it-IT');
+    tv.appendChild(clock);
+    var ci = setInterval(function() { clock.textContent = new Date().toLocaleTimeString('it-IT'); }, 500);
+    intervals.push(ci);
+    bs.appendChild(tv);
+    // statico TV
+    var cv = el('canvas', 'position:absolute;inset:0;width:100%;height:100%;opacity:0;');
+    bs.appendChild(cv);
+    var nctx = cv.getContext('2d'), noiseOn = false;
+    function noise(on) {
+      noiseOn = on;
+      cv.style.opacity = on ? '1' : '0';
+      if (!on) return;
+      cv.width = Math.max(2, Math.floor(bs.clientWidth / 2));
+      cv.height = Math.max(2, Math.floor(bs.clientHeight / 2));
+      (function loop() {
+        if (!noiseOn || done) return;
+        var img = nctx.createImageData(cv.width, cv.height);
+        for (var i = 0; i < img.data.length; i += 4) { var v = Math.random() * 255 | 0; img.data[i] = v; img.data[i+1] = v; img.data[i+2] = v; img.data[i+3] = 255; }
+        nctx.putImageData(img, 0, 0);
+        requestAnimationFrame(loop);
+      })();
+    }
     function finish() {
       if (done) return;
       done = true;
+      noiseOn = false;
+      timers.forEach(clearTimeout);
+      intervals.forEach(clearInterval);
       try { sessionStorage.setItem('undr-booted', '1'); } catch(e) {}
       bs.classList.add('off');
       setTimeout(function() { bs.remove(); }, 500);
     }
     bs.addEventListener('click', finish);
-    (function next() {
-      if (done) return;
-      if (i >= lines.length) { setTimeout(finish, 500); return; }
-      var d = document.createElement('div');
-      d.textContent = lines[i];
-      if (lines[i] === 'ON AIR') d.className = 'oa';
-      log.appendChild(d);
-      i++;
-      setTimeout(next, i === 1 ? 300 : 180);
-    })();
-    setTimeout(finish, 4000); // hard cap di sicurezza
+    // 1.3s: il segnale si strappa (glitch B/N: contrasto, luminosità, negativi lampo)
+    T(function() {
+      var n = 0;
+      var gl = setInterval(function() {
+        if (done) { clearInterval(gl); return; }
+        tv.style.transform = 'translateX(' + ((Math.random() - .5) * 26) + 'px) skewX(' + ((Math.random() - .5) * 6) + 'deg)';
+        tv.style.filter = 'contrast(' + (80 + Math.random() * 190) + '%) brightness(' + (55 + Math.random() * 130) + '%)' + (Math.random() < .22 ? ' invert(1)' : '');
+        noise(Math.random() < .4);
+        if (++n > 15) { clearInterval(gl); noise(true); }
+      }, 90);
+      intervals.push(gl);
+    }, 1300);
+    // 2.8s: SEGNALE INTERCETTATO lampeggiante sullo statico
+    T(function() {
+      clearInterval(ci);
+      var warn = el('div', 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;');
+      var box = el('div', 'background:#000;border:3px solid var(--accent);padding:14px 20px;font-family:var(--mono);font-size:17px;letter-spacing:0.16em;color:var(--accent);text-shadow:0 0 16px rgba(200,245,58,0.7);', '⚠ SEGNALE INTERCETTATO');
+      warn.appendChild(box);
+      bs.appendChild(warn);
+      var bl = setInterval(function() { if (done) { clearInterval(bl); return; } box.style.visibility = box.style.visibility === 'hidden' ? 'visible' : 'hidden'; }, 260);
+      intervals.push(bl);
+    }, 2800);
+    // 4.3s: takeover completato → la landing (il logo sbatte dentro sul canvas)
+    T(finish, 4300);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runBoot);
   else runBoot();
