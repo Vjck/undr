@@ -3871,60 +3871,59 @@ function startLandingAnimation() {
   var lockLeft = cx - (totalW + barZone + lockGap) / 2;
   var textLeft = lockLeft + barZone + lockGap;
 
-  var unXvert = cx - unW/2, drXvert = cx - drW/2;
-  var unYvert = cy - FS*0.55, drYvert = cy + FS*0.55;
-  var unXhoriz = textLeft;
-  var drXhoriz = textLeft + unW + 2;
   var horizY = cy;
 
   var startTime = null;
   var rafId = null;
+
+  // INTRO "l'EQ costruisce il logo": prima le barre che pompano,
+  // poi le lettere U-N-D-R scivolano fuori una a una, chiude la riga sotto.
+  var letters = ['U', 'N', 'D', 'R'];
+  var letterColor = ['#f0f0f0', '#f0f0f0', '#c8f53a', '#c8f53a'];
+  var letterW = letters.map(function(ch) { return ctx.measureText(ch).width; });
+  var letterX = [];
+  (function() { var lx = textLeft; for (var i = 0; i < letters.length; i++) { letterX[i] = lx; lx += letterW[i]; } })();
 
   function draw(ts) {
     if (!startTime) startTime = ts;
     var now = ts - startTime;
     ctx.clearRect(0, 0, W, H);
 
-    var pFade  = easeOut(prog(now, 200, 1000));
-    var pMerge = easeInOut(prog(now, 1600, 2550));
-    var pLine  = easeOut(prog(now, 2700, 3500));
-    var pSub   = easeOut(prog(now, 3100, 3800));
-    var pForm  = easeOut(prog(now, 3200, 4200));
+    // 1) le barre EQ nascono una alla volta e pompano da subito
+    var capH = FS * 0.62;
+    var phases = [0, 0.9, 0.45, 1.6];
+    var speeds = [1.0, 1.35, 0.8, 1.15];
+    ctx.fillStyle = '#c8f53a';
+    for (var b = 0; b < barN; b++) {
+      var pBar = easeOut(prog(now, 150 + b * 140, 430 + b * 140));
+      if (pBar <= 0) continue;
+      ctx.globalAlpha = pBar;
+      var hh = capH * (0.22 + 0.78 * Math.abs(Math.sin(now / 1000 * speeds[b] * Math.PI + phases[b])));
+      hh *= (0.35 + 0.65 * pBar);
+      ctx.fillRect(lockLeft + b * (barW + barGap), horizY - hh, barW, hh);
+    }
 
-    var unX = lerp(unXvert, unXhoriz, pMerge);
-    var drX = lerp(drXvert, drXhoriz, pMerge);
-    var unY = lerp(unYvert, horizY, pMerge);
-    var drY = lerp(drYvert, horizY, pMerge);
-
+    // 2) le lettere scivolano fuori dalle barre, una a una
     ctx.font = '700 ' + FS + 'px "Space Mono",monospace';
     ctx.textBaseline = 'alphabetic';
-    ctx.globalAlpha = pFade;
+    for (var i = 0; i < letters.length; i++) {
+      var pL = easeOut(prog(now, 850 + i * 260, 1220 + i * 260));
+      if (pL <= 0) continue;
+      ctx.globalAlpha = pL;
+      ctx.fillStyle = letterColor[i];
+      ctx.fillText(letters[i], letterX[i] - (1 - pL) * FS * 0.42, horizY);
+    }
 
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillText('UN', unX, unY);
-    ctx.fillStyle = '#c8f53a';
-    ctx.fillText('DR', drX, drY);
-
+    // 3) la riga chiude il lockup
+    var pLine = easeOut(prog(now, 2050, 2700));
     if (pLine > 0) {
       var lineY = horizY + FS * 0.18;
-      var lineW = lerp(0, totalW, pLine);
-      ctx.globalAlpha = pFade * Math.min(pLine * 3, 1);
+      ctx.globalAlpha = Math.min(pLine * 3, 1);
       ctx.fillStyle = '#c8f53a';
-      ctx.fillRect(textLeft, lineY, lineW, Math.max(1.5, FS*0.038));
+      ctx.fillRect(textLeft, lineY, lerp(0, totalW, pLine), Math.max(1.5, FS*0.038));
     }
 
-    // Barre EQ del marchio: compaiono col merge e continuano a "suonare"
-    if (pLine > 0) {
-      var capH = FS * 0.62;
-      ctx.globalAlpha = pFade * Math.min(pLine * 2, 1);
-      ctx.fillStyle = '#c8f53a';
-      var phases = [0, 0.9, 0.45, 1.6];
-      var speeds = [1.0, 1.35, 0.8, 1.15];
-      for (var b = 0; b < barN; b++) {
-        var hh = capH * (0.22 + 0.78 * Math.abs(Math.sin(now / 1000 * speeds[b] * Math.PI + phases[b])));
-        ctx.fillRect(lockLeft + b * (barW + barGap), horizY - hh, barW, hh);
-      }
-    }
+    var pForm = easeOut(prog(now, 2250, 3250));
 
 
 
