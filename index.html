@@ -4710,6 +4710,10 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
   function showStatic(ms) {
     var c = document.getElementById('tv-static');
     if (!c) return;
+    // disegna SOLO se il tab TV è davvero visibile: su tab nascosta è texture GPU sprecata
+    // (su driver Mali fragili contribuiva alla corruzione del rendering)
+    var tp = document.getElementById('tab-player');
+    if (!tp || !tp.classList.contains('active')) return;
     var host = c.parentElement;
     var w = (host && host.offsetWidth) || 320;
     var h = (host && host.offsetHeight) || 180;
