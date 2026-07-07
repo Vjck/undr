@@ -355,6 +355,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* In tab TV e in CODA niente effetto CRT: video e copertine devono vedersi puliti */
 body:has(#screen-room.active #tab-player.active) #crt-overlay,
 body:has(#screen-room.active #tab-queue.active) #crt-overlay { display: none; }
+/* fallback via JS per browser senza :has() (MIUI browser, Safari datati) */
+body.crt-off #crt-overlay { display: none !important; }
 
 /* ── BOOT SEQUENCE ── */
 #boot-screen { position: fixed; inset: 0; z-index: 10000; background: #000; display: flex; flex-direction: column; justify-content: center; padding: 0 30px; font-family: var(--mono); transition: opacity 0.45s; cursor: pointer; animation: bootFailsafe 0.5s 6s forwards; }
@@ -1432,6 +1434,7 @@ async function joinRoom() {
 function showRoom() {
   document.getElementById('screen-landing').classList.remove('active');
   document.getElementById('screen-room').classList.add('active');
+  if (typeof _syncCrtOff === 'function') _syncCrtOff();
   const cb = document.getElementById('copyright-bar'); if (cb) cb.style.display = 'none';
   const lockIcon = crewPasswordHash ? ' ' : '';
   document.getElementById('room-code-display').textContent = roomCode + lockIcon; var ptc = document.getElementById('player-tb-crew-code'); if (ptc) ptc.textContent = roomCode + lockIcon;
@@ -1481,6 +1484,7 @@ function _doLeave() {
   stopProgress();
   document.getElementById('screen-room').classList.remove('active');
   document.getElementById('screen-landing').classList.add('active');
+  if (typeof _syncCrtOff === 'function') _syncCrtOff();
   const cb2 = document.getElementById('copyright-bar'); if (cb2) { cb2.style.display = 'none'; setTimeout(function(){ cb2.style.display='block'; cb2.style.opacity='0.6'; }, 4500); }
   document.getElementById('queue-list').innerHTML = '<p style="text-align:center; color:var(--muted); font-size:13px; padding:2rem;">' + (getLang().emptyQueue?.replace('·','<br>') || 'nessuna track in coda.<br>droppa qualcosa sotto.') + '</p>';
   const qh = document.getElementById('queue-header-label'); if (qh) qh.textContent = 'IN CODA — 0 TRACKS';
@@ -2088,6 +2092,8 @@ var _autoNextWatchdog = null;
 function _setupAutoNextWatchdog() {
   clearTimeout(_autoNextWatchdog);
   _autoNextWatchdog = null;
+  // in pausa il timer resta SPENTO: si riarma alla ripresa (state 1 / play)
+  if (_pausedAt && !_progressRunning) return;
   var capturedIdx = currentIdx;
   var capturedVid = queue[currentIdx]?.videoId;
   // Tempo RIMANENTE reale (non durata piena dall'inizio): pause/riprese non lo fanno più scattare in anticipo
@@ -2456,9 +2462,9 @@ window.addEventListener('message', (e) => {
         const bPlay = document.getElementById('audio-play-btn'); if (bPlay) bPlay.textContent = '⏸';
         if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       }
-      // 2 = paused: se l'app è in primo piano è una pausa voluta dall'utente → rispettala.
-      // Se siamo in background ci pensa il watchdog (vedi skin) a far ripartire.
-      if (data.event === 'onStateChange' && (data.info === 2 || data.info === '2') && document.hasFocus()) {
+      // 2 = paused: SEMPRE una pausa da rispettare. (Niente più check hasFocus:
+      // toccando il player YT il focus va all'iframe e la pausa veniva ignorata.)
+      if (data.event === 'onStateChange' && (data.info === 2 || data.info === '2')) {
         if (_progressRunning) {
           _pausedAt = Date.now() - _progressStart;
           _progressRunning = false;
@@ -2484,8 +2490,8 @@ window.addEventListener('message', (e) => {
       const cur = queue[currentIdx];
       if (cur) {
         savelearnedDuration(cur.source || 'youtube', cur.videoId, data.info.duration);
-        // Riavvia watchdog con duration reale
-        _setupAutoNextWatchdog();
+        // Riavvia watchdog con duration reale (ma MAI durante una pausa)
+        if (_progressRunning) _setupAutoNextWatchdog();
       }
     }
     // Vimeo duration info
@@ -3014,6 +3020,17 @@ function switchTab(name, el) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
+  _syncCrtOff();
+}
+
+// CRT spento su coda e player anche dove :has() non esiste (browser vecchi / MIUI / Safari datati)
+function _syncCrtOff() {
+  try {
+    const inRoom = document.getElementById('screen-room')?.classList.contains('active');
+    const tabQ = document.getElementById('tab-queue')?.classList.contains('active');
+    const tabP = document.getElementById('tab-player')?.classList.contains('active');
+    document.body.classList.toggle('crt-off', !!(inRoom && (tabQ || tabP)));
+  } catch(e) {}
 }
 
 function toast(msg) {
@@ -4738,27 +4755,13 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
       if (f && f.contentWindow) f.contentWindow.postMessage(JSON.stringify({ event: 'command', func: func, args: [] }), '*');
     } catch(e) {}
   }
-  // v2: NON dipende da document.hidden (in WebView può non scattare mai).
-  // Regola: se YouTube risulta in pausa mentre l'app crede di suonare E l'app non è in primo piano,
-  // è un'autopausa di YouTube → rimettila in play. La pausa voluta dall'utente in-app
-  // azzera _progressRunning (sync nel listener principale), quindi non viene mai combattuta.
+  // v3: RIMOSSO il "riavvia playVideo se pausa senza focus" (v2).
+  // Motivo: toccando il player YouTube il focus passa all'iframe → il documento perde il focus
+  // e una PAUSA VOLUTA veniva scambiata per autopausa da background → riavvii fantasma e salto traccia.
+  // L'audio a schermo spento non funziona comunque in WebView, quindi quel watchdog non dava nulla.
   var _bgRetries = 0;
   window.addEventListener('focus', function() { _bgRetries = 0; });
   window.__undrResetBgRetries = function() { _bgRetries = 0; };
-  window.addEventListener('message', function(e) {
-    try {
-      if (!e.origin || e.origin.indexOf('youtube') === -1) return;
-      var d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-      if (d.event !== 'onStateChange') return;
-      if ((d.info === 2 || d.info === '2') && !document.hasFocus() &&
-          typeof _progressRunning !== 'undefined' && _progressRunning && _bgRetries < 8) {
-        _bgRetries++;
-        setTimeout(function() {
-          if (typeof _progressRunning !== 'undefined' && _progressRunning && !document.hasFocus()) _ytCommand('playVideo');
-        }, 350);
-      }
-    } catch(err) {}
-  });
 
   // ── HOOK su playTrack e switchTab (dopo i wrapper token a 300ms) ──
   setTimeout(function() {
