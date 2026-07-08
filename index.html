@@ -2061,6 +2061,14 @@ function stopYTTicker() {
   }
 }
 
+// L'app gira LOCALMENTE nella WebView (APK) o in dev: dichiarando localhost, YouTube
+// non serve pubblicità agli embed locali (li tratta da ambiente di sviluppo).
+// Sul SITO pubblico (dominio vero) usa l'origin reale — lì gli ad sono inevitabili.
+function _ytOrigin() {
+  var o = location.origin || '';
+  if (!/^https?:\/\//i.test(o) || /(?:^|\/\/)(?:localhost|127\.0\.0\.1)|tauri/i.test(o)) return 'http://localhost';
+  return o;
+}
 function _loadYT(videoId, autoplay) {
   const iframe = document.getElementById('yt-iframe');
   if (!iframe) return;
@@ -2072,7 +2080,7 @@ function _loadYT(videoId, autoplay) {
     'modestbranding=1',
     'enablejsapi=1',
     'widgetid=1',
-    'origin=' + encodeURIComponent(location.origin)
+    'origin=' + encodeURIComponent(_ytOrigin())
   ].join('&');
   iframe.src = 'https://www.youtube-nocookie.com/embed/' + videoId + '?' + params;
   iframe.style.display = 'block';
