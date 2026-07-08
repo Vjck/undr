@@ -2197,6 +2197,18 @@ function playTrack(idx, autoplay) {
   if (_progressDuration) updateTimeDur(_progressDuration);
   else updateTimeDur(0);
   startProgressSimulation();
+  // Brani vecchi/ripristinati senza durata: con origin locale la durata NON arriva da YouTube,
+  // quindi la recupero ORA da Invidious e armo l'auto-next → sa quando finisce la canzone.
+  if (!_progressDuration && source !== 'vimeo') {
+    const _vid = s.videoId;
+    fetchYTDuration(_vid).then(function(dur){
+      if (dur > 0 && queue[currentIdx] && queue[currentIdx].videoId === _vid) {
+        _progressDuration = dur;
+        savelearnedDuration('youtube', _vid, dur);
+        if (_progressRunning) _setupAutoNextWatchdog();
+      }
+    });
+  }
   // auto-next gestito da progress tick
   setAudioStatus('playing', getLang().playing || 'in riproduzione');
   setupMediaSession();
@@ -2229,27 +2241,25 @@ async function fetchMeta(source, videoId) {
 }
 
 async function fetchYTDuration(videoId) {
-  // Invidious instances — rispondono con CORS aperto (Access-Control-Allow-Origin: *)
+  // Durata del brano da istanze Invidious (CORS aperto). Le interrogo TUTTE in parallelo:
+  // vince la prima che risponde → veloce e resistente alle istanze morte.
   const instances = [
-    'https://invidious.snopyta.org',
     'https://y.com.sb',
-    'https://invidious.nerdvpn.de',
-    'https://invidious.flokinet.to',
-    'https://iv.ggtyler.dev',
-    'https://invidious.privacydev.net'
+    'https://invidious.jing.rocks',
+    'https://inv.nadeko.net',
+    'https://invidious.privacyredirect.com',
+    'https://iv.melmac.space',
+    'https://invidious.f5.si',
+    'https://yt.artemislena.eu',
+    'https://invidious.protokolla.fi',
+    'https://invidious.nerdvpn.de'
   ];
-  for (const base of instances) {
-    try {
-      const url = base + '/api/v1/videos/' + videoId + '?fields=lengthSeconds';
-      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!r.ok) continue;
-      const data = await r.json();
-      if (data.lengthSeconds && data.lengthSeconds > 0) {
-        return data.lengthSeconds;
-      }
-    } catch(e) { continue; }
-  }
-  return 0;
+  const tries = instances.map(function(base) {
+    return fetch(base + '/api/v1/videos/' + videoId + '?fields=lengthSeconds', { signal: AbortSignal.timeout(6000) })
+      .then(function(r){ if (!r.ok) throw 0; return r.json(); })
+      .then(function(d){ if (d && d.lengthSeconds > 0) return d.lengthSeconds; throw 0; });
+  });
+  try { return await Promise.any(tries); } catch(e) { return 0; }
 }
 
 function seekTo(e) {
