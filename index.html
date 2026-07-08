@@ -1993,6 +1993,9 @@ function removeSong(songId) {
 function _playNextAuto() {
   clearTimeout(_autoNextWatchdog);
   _autoNextWatchdog = null;
+  // BLOCCO A PROVA DI BOMBA: se l'utente ha messo in pausa, non avanzare MAI.
+  // (La fine-traccia vera passa da stopProgress che azzera _pausedAt, quindi lì si avanza.)
+  if (_pausedAt && !_progressRunning) return;
   if (!queue.length) return;
   if (_shuffleEnabled) {
     // Casuale — qualsiasi traccia tranne quella corrente
@@ -2610,11 +2613,17 @@ function togglePlay() {
   btn.textContent = paused ? '⏸' : '▶';
   setAudioStatus(paused ? 'playing' : '', paused ? (getLang().playing||'in riproduzione') : (getLang().paused||'in pausa'));
   if (paused) {
+    // sta per RIPRENDERE
     _progressRunning = true;
     _progressStart = Date.now() - (_pausedAt || 0);
+    _pausedAt = 0;
+    _setupAutoNextWatchdog();                                    // riarma il timer col tempo rimanente
   } else {
+    // sta per andare in PAUSA → spegni ogni timer di avanzamento
     _pausedAt = (Date.now() - _progressStart);
     _progressRunning = false;
+    clearTimeout(_autoNextWatchdog); _autoNextWatchdog = null;
+    clearTimeout(_autoNextTimer); _autoNextTimer = null;
   }
 }
 
