@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#080808">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="no"><!-- iOS: standalone castra gli embed YouTube → l'icona in home apre in Safari, dove la musica parte -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="UNDR">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2069,9 +2069,39 @@ function _ytOrigin() {
   if (!/^https?:\/\//i.test(o) || /(?:^|\/\/)(?:localhost|127\.0\.0\.1)|tauri/i.test(o)) return 'http://localhost';
   return o;
 }
+var _ytChannelOk = false;   // vero se il player risponde via postMessage (solo con origin reale: sito/PWA)
+var _lastYtMsgAt = 0;       // timestamp dell'ultimo messaggio ricevuto dal player
+var _ytSwapCheckTimer = null;
+
 function _loadYT(videoId, autoplay) {
   const iframe = document.getElementById('yt-iframe');
   if (!iframe) return;
+  // Su iOS (Safari/Chrome/Firefox = tutti WebKit) un iframe RICARICATO non parte mai da solo.
+  // Se il canale col player è vivo, cambio video DENTRO lo stesso player (loadVideoById):
+  // eredita il tocco del primo play → l'auto-next funziona anche su iPhone.
+  if (_ytChannelOk && autoplay && /youtube/.test(iframe.src || '')) {
+    try {
+      iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'loadVideoById', args: [videoId] }), '*');
+      iframe.style.display = 'block';
+      _ytPlayerReady = true;
+      document.getElementById('audio-play-btn').textContent = '⏸';
+      _setupAutoNextWatchdog();
+      // Paracadute: se il player non dà segni di vita entro 2.5s il canale era morto → ricarico l'iframe
+      clearTimeout(_ytSwapCheckTimer);
+      var sentAt = Date.now();
+      _ytSwapCheckTimer = setTimeout(function() {
+        if (_lastYtMsgAt < sentAt) { _ytChannelOk = false; _loadYTHard(videoId, autoplay); }
+      }, 2500);
+      return;
+    } catch(e) {}
+  }
+  _loadYTHard(videoId, autoplay);
+}
+
+function _loadYTHard(videoId, autoplay) {
+  const iframe = document.getElementById('yt-iframe');
+  if (!iframe) return;
+  _ytChannelOk = false; // si riattiva quando il player risponde sul canale
   const params = [
     'autoplay=' + (autoplay ? '1' : '0'),
     'playsinline=1',
@@ -2460,6 +2490,9 @@ window.addEventListener('message', (e) => {
     const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
     // YouTube events
     if (e.origin && (e.origin.includes('youtube') || e.origin.includes('localhost'))) {
+      // Canale vivo: il player risponde → da qui in poi i cambi brano avvengono
+      // dentro lo stesso player (loadVideoById) → auto-next OK anche su iPhone
+      if (e.origin.includes('youtube') && data && data.event) { _ytChannelOk = true; _lastYtMsgAt = Date.now(); }
       // Quando YouTube è pronto, attiviamo gli eventi
       if (data.event === 'readytolisten' || data.event === 'initialDelivery' || data.event === 'onReady') {
         const iframe = document.getElementById('yt-iframe');
@@ -3787,12 +3820,16 @@ function initPWA() {
   document.getElementById('apple-icon').href = icon180;
 
   // Inject manifest as blob
+  // iOS: la modalità "standalone" (icona in home) usa una WebView castrata dove
+  // gli embed YouTube NON partono → su iPhone/iPad l'icona apre in modalità browser.
+  // Android non è toccato: resta standalone a schermo intero.
+  const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const manifest = {
     name: 'UNDR',
     short_name: 'UNDR',
     description: 'Musica underground · P2P · Crew only · No server',
     start_url: '.',
-    display: 'standalone',
+    display: _isIOS ? 'browser' : 'standalone',
     orientation: 'portrait',
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
