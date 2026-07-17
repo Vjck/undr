@@ -4403,6 +4403,11 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
       <div id="saved-crews-host"></div>
     </div>
 
+    <button id="fm-open-btn" onclick="openFM()" style="width:100%;margin-top:10px;background:transparent;border:1px solid rgba(200,245,58,0.5);border-radius:22px;padding:13px;cursor:pointer;font-family:var(--mono);">
+      <span style="color:var(--accent);font-size:12px;letter-spacing:0.15em;">((&middot;)) UNDR FM</span>
+      <span style="display:block;color:rgba(200,245,58,0.45);font-size:10px;letter-spacing:0.08em;margin-top:3px;">RADIO BAND EMERGENTI &middot; SENZA CREW</span>
+    </button>
+
     <div style="margin-top:10px;">
       <button onclick="toggleAccordion('acc-privacy-join')" style="width:100%;background:transparent;color:var(--muted2);border:none;padding:10px;font-family:var(--mono);font-size:11px;letter-spacing:0.1em;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:6px;">
         <span style="color:var(--accent);">⚠</span><span>privacy</span><span id="acc-privacy-arrow" style="color:var(--accent);">+</span>
@@ -4416,6 +4421,73 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
     <div style="text-align:center;margin-top:10px;">
       <div id="copyright-bar" style="display:none;margin-top:6px;"><span id="copyright-text">© 2026 UNDR</span></div>
     </div>
+  </div>
+</div>
+
+<!-- ══ UNDR FM (radio band emergenti — lettura dal cloud FOR CREATOR) ══ -->
+<style>
+#screen-fm { background: var(--bg); padding: calc(var(--safe-top, 0px) + 12px) 16px 16px; overflow-y: auto; }
+.fm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
+.fm-back { background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; color: var(--muted); font-family: var(--mono); font-size: 13px; padding: 8px 13px; cursor: pointer; }
+.fm-title { color: var(--accent); font-family: var(--mono); font-size: 14px; letter-spacing: 0.2em; }
+.fm-label { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; margin: 12px 0 8px; }
+.fm-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.fm-chip { background: transparent; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; color: #888; font-family: var(--mono); font-size: 12px; padding: 8px 13px; cursor: pointer; }
+.fm-chip.on { background: var(--accent); border-color: var(--accent); color: #080808; }
+.fm-sub { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #888; font-family: var(--mono); font-size: 12px; padding: 10px 13px; cursor: pointer; margin-bottom: 6px; }
+.fm-sub.on { border-color: var(--accent); color: var(--accent); }
+#fm-tune-btn { width: 100%; background: var(--accent); color: #080808; border: none; border-radius: 22px; padding: 16px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer; margin-top: 14px; }
+#fm-tune-btn:disabled { opacity: 0.25; cursor: default; }
+#fm-status { color: var(--muted); font-family: var(--mono); font-size: 11px; text-align: center; margin-top: 10px; min-height: 16px; }
+#fm-view-onair { display: none; }
+.fm-onair-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.fm-live { color: var(--accent); font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; animation: fmblink 2.4s infinite; }
+@keyframes fmblink { 0%,88%,100% { opacity: 1; } 94% { opacity: 0.25; } }
+.fm-chan { border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; color: #888; font-family: var(--mono); font-size: 11px; padding: 3px 9px; }
+#fm-player-slot { background: #000; border-radius: 10px; overflow: hidden; position: relative; width: 100%; aspect-ratio: 16/9; margin-bottom: 12px; }
+#fm-player-slot > div { position: absolute; inset: 0; height: 100% !important; }
+#fm-ref-title { color: #eee; font-family: var(--mono); font-size: 15px; margin: 0 0 3px; }
+#fm-ref-band { color: var(--accent); font-family: var(--mono); font-size: 12px; margin: 0 0 3px; }
+#fm-ref-meta { color: #666; font-family: var(--mono); font-size: 11px; margin: 0 0 14px; }
+.fm-actions { display: flex; gap: 8px; }
+.fm-act { flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; color: #999; font-family: var(--mono); font-size: 12px; padding: 12px; cursor: pointer; }
+.fm-act.lime { border-color: rgba(200,245,58,0.5); color: var(--accent); }
+#fm-heart-btn.on { background: rgba(200,245,58,0.12); border-color: var(--accent); color: var(--accent); }
+#fm-band-card { display: none; background: #101010; border: 1px solid rgba(200,245,58,0.25); border-radius: 12px; padding: 13px; margin-top: 12px; font-family: var(--mono); }
+#fm-band-card p { margin: 0 0 6px; font-size: 12px; color: #999; }
+#fm-band-card a { color: var(--accent); }
+</style>
+<div id="screen-fm" class="screen">
+  <div class="fm-head">
+    <button class="fm-back" onclick="exitFM()">&#9668;</button>
+    <span class="fm-title">((&middot;)) UNDR FM</span>
+  </div>
+
+  <div id="fm-view-tuner">
+    <div class="fm-label">GENERE</div>
+    <div id="fm-genres" class="fm-chips"></div>
+    <div class="fm-label" id="fm-subs-label" style="display:none;">CANALE</div>
+    <div id="fm-subs"></div>
+    <button id="fm-tune-btn" onclick="tuneFM()" disabled>&#9654; SINTONIZZATI</button>
+    <div id="fm-status"></div>
+  </div>
+
+  <div id="fm-view-onair">
+    <div class="fm-onair-row">
+      <span class="fm-live">&#9679; ON AIR</span>
+      <span class="fm-chan" id="fm-chan-name"></span>
+    </div>
+    <div id="fm-player-slot"></div>
+    <p id="fm-ref-title"></p>
+    <p id="fm-ref-band"></p>
+    <p id="fm-ref-meta"></p>
+    <div class="fm-actions">
+      <button class="fm-act" id="fm-heart-btn" onclick="fmHeart()">&#9825; SALVA</button>
+      <button class="fm-act" onclick="fmSkip()">&#9654;&#9654; SKIP</button>
+      <button class="fm-act lime" onclick="fmToggleBandCard()">SCHEDA BAND</button>
+    </div>
+    <div id="fm-band-card"></div>
+    <button class="fm-act" style="width:100%;margin-top:12px;" onclick="fmBackToTuner()">&#8634; CAMBIA CANALE</button>
   </div>
 </div>
 
@@ -5093,6 +5165,230 @@ function broadcastProfile() {
     if (suppressClick) { suppressClick = false; e.stopPropagation(); e.preventDefault(); }
   }, true);
 })();
+</script>
+<script>
+// ══ UNDR FM — radio band emergenti. Legge il cloud FOR CREATOR (sola lettura),
+//    riusa il player e l'auto-next esistenti. Nessun impatto sulla parte crew. ══
+var FM_URL = 'https://soyvmntqgpydansubrdw.supabase.co/rest/v1';
+var FM_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNveXZtbnRxZ3B5ZGFuc3VicmR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyOTY3NjAsImV4cCI6MjA5OTg3Mjc2MH0.DPzvbTFzZtwPMJxmez_qF3M01fUVwahYEtJXl-uS20E';
+// Albero v1 (identico al seed del cloud): usato solo se il cloud non risponde
+var FM_TREE_FALLBACK = {
+  g: [['metal','Metal'],['punk','Punk'],['rock','Rock'],['electro','Electro'],['hip-hop','Hip-Hop'],['pop-indie','Pop/Indie'],['goth','Goth/Darkwave'],['jazz-funk','Jazz/Funk/Soul'],['reggae-dub','Reggae/Dub'],['folk','Folk/Cantautori'],['experimental','Sperimentale/Noise']],
+  s: {
+    'metal': [['heavy-metal','Heavy Metal'],['thrash-metal','Thrash Metal'],['death-metal','Death Metal'],['black-metal','Black Metal'],['doom-sludge','Doom/Sludge'],['stoner-metal','Stoner Metal'],['power-metal','Power Metal'],['prog-metal','Prog Metal'],['metalcore','Metalcore'],['deathcore','Deathcore'],['grindcore','Grindcore'],['nu-metal','Nu Metal'],['industrial-metal','Industrial Metal'],['folk-pagan-metal','Folk/Pagan Metal'],['gothic-symphonic-metal','Gothic/Symphonic Metal']],
+    'punk': [['punk-rock','Punk Rock'],['hardcore','Hardcore'],['post-hardcore','Post-Hardcore'],['emo-screamo','Emo/Screamo'],['crust-dbeat','Crust/D-Beat'],['ska-punk','Ska Punk'],['pop-punk','Pop Punk'],['garage-punk','Garage Punk'],['oi-street-punk','Oi!/Street Punk'],['folk-punk','Folk Punk'],['post-punk','Post-Punk']],
+    'rock': [['alternative-rock','Alternative Rock'],['indie-rock','Indie Rock'],['garage-rock','Garage Rock'],['grunge','Grunge'],['psych-rock','Psych Rock'],['stoner-rock','Stoner Rock'],['hard-rock','Hard Rock'],['prog-rock','Prog Rock'],['post-rock','Post-Rock'],['math-rock','Math Rock'],['noise-rock','Noise Rock'],['shoegaze','Shoegaze'],['blues-rock','Blues Rock'],['surf-rock','Surf Rock']],
+    'electro': [['techno','Techno'],['house','House'],['electro-classic','Electro'],['drum-and-bass','Drum & Bass'],['jungle-breakbeat','Jungle/Breakbeat'],['dubstep-bass','Dubstep/Bass'],['trance','Trance'],['ambient','Ambient'],['idm','IDM'],['breakcore','Breakcore'],['industrial-ebm','Industrial/EBM'],['synthwave','Synthwave'],['hyperpop','Hyperpop'],['phonk','Phonk']],
+    'hip-hop': [['boom-bap','Boom Bap'],['trap','Trap'],['drill','Drill'],['cloud-rap','Cloud Rap'],['abstract-hiphop','Abstract/Experimental'],['lofi-hiphop','Lo-Fi Hip-Hop'],['conscious','Conscious/Storytelling'],['hardcore-rap','Hardcore Rap'],['grime','Grime']],
+    'pop-indie': [['indie-pop','Indie Pop'],['dream-pop','Dream Pop'],['synth-pop','Synth Pop'],['bedroom-pop','Bedroom Pop'],['art-pop','Art Pop']],
+    'goth': [['gothic-rock','Gothic Rock'],['darkwave','Darkwave'],['coldwave','Coldwave'],['minimal-synth','Minimal Synth'],['witch-house','Witch House'],['dungeon-synth','Dungeon Synth']],
+    'jazz-funk': [['jazz','Jazz'],['jazz-fusion','Jazz Fusion'],['nu-jazz','Nu Jazz'],['funk','Funk'],['soul','Soul'],['alt-rnb','R&B Alternativo'],['blues','Blues']],
+    'reggae-dub': [['reggae','Reggae'],['dub','Dub'],['ska-rocksteady','Ska/Rocksteady'],['dancehall','Dancehall']],
+    'folk': [['folk-classic','Folk'],['cantautorato','Cantautorato'],['country-americana','Country/Americana'],['neofolk','Neofolk'],['world-music','World Music']],
+    'experimental': [['noise','Noise'],['drone','Drone'],['dark-ambient','Dark Ambient'],['avant-garde','Avant-Garde'],['lofi-outsider','Lo-Fi/Outsider']]
+  }
+};
+var _fmActive = false;
+var _fmGenres = null, _fmSubs = null;
+var _fmGenre = null, _fmSub = null;
+var _fmSlotParent = null;
+var _fmHooked = false;
+
+function fmFetch(path) {
+  return fetch(FM_URL + path, { headers: { 'apikey': FM_KEY, 'Authorization': 'Bearer ' + FM_KEY } })
+    .then(function(r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); });
+}
+
+function openFM() {
+  document.getElementById('screen-landing').classList.remove('active');
+  document.getElementById('screen-fm').classList.add('active');
+  _fmActive = true;
+  if (_fmGenres) { fmRenderGenres(); return; }
+  var st = document.getElementById('fm-status');
+  st.textContent = 'carico i canali…';
+  Promise.all([fmFetch('/genres?select=*&order=position'), fmFetch('/subgenres?select=*&order=position')])
+    .then(function(res) { _fmGenres = res[0]; _fmSubs = res[1]; st.textContent = ''; fmRenderGenres(); })
+    .catch(function() {
+      _fmGenres = FM_TREE_FALLBACK.g.map(function(x, i) { return { id: x[0], name: x[1], position: i }; });
+      _fmSubs = [];
+      FM_TREE_FALLBACK.g.forEach(function(g) { (FM_TREE_FALLBACK.s[g[0]] || []).forEach(function(s, i) { _fmSubs.push({ id: s[0], genre_id: g[0], name: s[1], position: i }); }); });
+      st.textContent = '';
+      fmRenderGenres();
+    });
+}
+
+function exitFM() {
+  fmStopRadio();
+  _fmActive = false;
+  document.getElementById('screen-fm').classList.remove('active');
+  document.getElementById('screen-landing').classList.add('active');
+}
+
+function fmBackToTuner() { fmStopRadio(); }
+
+function fmStopRadio() {
+  try { stopProgress(); } catch(e) {}
+  try { clearTimeout(_autoNextWatchdog); _autoNextWatchdog = null; } catch(e) {}
+  var yif = document.getElementById('yt-iframe'); if (yif) yif.src = 'about:blank';
+  var vif = document.getElementById('vimeo-iframe'); if (vif) vif.src = 'about:blank';
+  try { _ytChannelOk = false; } catch(e) {}
+  var wrap = document.getElementById('yt-iframe-wrap');
+  if (wrap && _fmSlotParent && wrap.parentElement !== _fmSlotParent) { _fmSlotParent.appendChild(wrap); wrap.style.display = 'none'; }
+  queue = []; currentIdx = 0;
+  _shuffleEnabled = false; _loopEnabled = false;
+  try { renderQueue(); } catch(e) {}
+  document.getElementById('fm-view-onair').style.display = 'none';
+  document.getElementById('fm-view-tuner').style.display = 'block';
+}
+
+function fmRenderGenres() {
+  var el = document.getElementById('fm-genres');
+  el.innerHTML = (_fmGenres || []).map(function(g) {
+    return '<button class="fm-chip' + (_fmGenre === g.id ? ' on' : '') + '" onclick="fmPickGenre(\'' + g.id + '\')">' + escHtml(g.name) + '</button>';
+  }).join('');
+  fmRenderSubs();
+}
+function fmPickGenre(id) { _fmGenre = id; _fmSub = null; fmRenderGenres(); }
+function fmRenderSubs() {
+  var lab = document.getElementById('fm-subs-label');
+  var el = document.getElementById('fm-subs');
+  var btn = document.getElementById('fm-tune-btn');
+  if (!_fmGenre) { lab.style.display = 'none'; el.innerHTML = ''; btn.disabled = true; return; }
+  lab.style.display = 'block';
+  el.innerHTML = (_fmSubs || []).filter(function(s) { return s.genre_id === _fmGenre; }).map(function(s) {
+    return '<button class="fm-sub' + (_fmSub === s.id ? ' on' : '') + '" onclick="fmPickSub(\'' + s.id + '\')">' + escHtml(s.name) + '</button>';
+  }).join('');
+  btn.disabled = !_fmSub;
+}
+function fmPickSub(id) { _fmSub = id; fmRenderSubs(); }
+function fmSubName(id) { var s = (_fmSubs || []).find(function(x) { return x.id === id; }); return s ? s.name : ''; }
+function fmGenreName(id) { var g = (_fmGenres || []).find(function(x) { return x.id === id; }); return g ? g.name : ''; }
+
+function tuneFM() {
+  if (!_fmSub) return;
+  var st = document.getElementById('fm-status');
+  st.textContent = 'sintonizzazione…';
+  var subName = fmSubName(_fmSub);
+  fmFetch('/tracks?select=*&published=is.true&subgenre_id=eq.' + encodeURIComponent(_fmSub) + '&limit=200')
+    .then(function(tr) {
+      if (tr.length >= 5) return { tracks: tr, widened: false };
+      // canale scarso → random allargato a tutto il genere (deciso 17/07)
+      return fmFetch('/tracks?select=*&published=is.true&genre_id=eq.' + encodeURIComponent(_fmGenre) + '&limit=300')
+        .then(function(trg) { return trg.length > tr.length ? { tracks: trg, widened: true } : { tracks: tr, widened: false }; });
+    })
+    .then(function(res) {
+      if (!res) return;
+      var tracks = res.tracks.filter(function(t) { return t.video_id; });
+      if (!tracks.length) { st.textContent = 'SEGNALE ASSENTE — nessuna band su questo canale (per ora)'; return; }
+      var ids = tracks.map(function(t) { return t.band_id; }).filter(function(v, i, a) { return a.indexOf(v) === i; });
+      return fmFetch('/bands?select=id,name,city,country,bio,links&id=in.(' + ids.join(',') + ')')
+        .then(function(bands) {
+          var bmap = {}; bands.forEach(function(b) { bmap[b.id] = b; });
+          fmStartRadio(tracks, bmap, res.widened, subName);
+        });
+    })
+    .catch(function() { st.textContent = 'radio non raggiungibile — controlla la connessione'; });
+}
+
+function fmStartRadio(tracks, bmap, widened, subName) {
+  queue = tracks.map(function(t) {
+    var b = bmap[t.band_id] || {};
+    return {
+      id: 'fm-' + t.id,
+      videoId: t.video_id,
+      source: t.provider || 'youtube',
+      title: t.title,
+      author: b.name || 'band',
+      thumb: (t.provider !== 'vimeo' && t.video_id) ? ('https://i.ytimg.com/vi/' + t.video_id + '/hqdefault.jpg') : '',
+      votes: 0, voters: [],
+      fmAlbum: t.album || '', fmBand: b, fmSub: fmSubName(t.subgenre_id) || subName
+    };
+  });
+  for (var i = queue.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = queue[i]; queue[i] = queue[j]; queue[j] = tmp; }
+  currentIdx = 0;
+  _shuffleEnabled = queue.length > 1;
+  _loopEnabled = true;
+  var wrap = document.getElementById('yt-iframe-wrap');
+  if (wrap) {
+    if (!_fmSlotParent) _fmSlotParent = wrap.parentElement;
+    document.getElementById('fm-player-slot').appendChild(wrap);
+    wrap.style.display = 'block';
+  }
+  document.getElementById('fm-chan-name').textContent = (widened ? fmGenreName(_fmGenre) + ' · esteso' : subName).toLowerCase();
+  document.getElementById('fm-view-tuner').style.display = 'none';
+  document.getElementById('fm-view-onair').style.display = 'block';
+  document.getElementById('fm-status').textContent = '';
+  fmInstallHook();
+  playTrack(0, true);
+}
+
+function fmInstallHook() {
+  if (_fmHooked) return;
+  _fmHooked = true;
+  var orig = window.playTrack;
+  window.playTrack = function(idx, autoplay) {
+    var r = orig.apply(this, arguments);
+    if (_fmActive) { try { fmUpdateRefs(); } catch(e) {} }
+    return r;
+  };
+}
+
+function fmUpdateRefs() {
+  var s = queue[currentIdx]; if (!s) return;
+  document.getElementById('fm-ref-title').textContent = s.title || '';
+  var b = s.fmBand || {};
+  document.getElementById('fm-ref-band').textContent = (s.author || '') + (b.city ? ' · ' + b.city : '');
+  var meta = [];
+  if (s.fmAlbum) meta.push('album: ' + s.fmAlbum);
+  if (s.fmSub) meta.push(s.fmSub.toLowerCase());
+  document.getElementById('fm-ref-meta').textContent = meta.join(' · ');
+  var btn = document.getElementById('fm-heart-btn');
+  var saved = findStashIndexByKey((s.source || 'youtube') + ':' + s.videoId) >= 0;
+  btn.classList.toggle('on', saved);
+  btn.innerHTML = saved ? '&#9829; SALVATA' : '&#9825; SALVA';
+  document.getElementById('fm-band-card').style.display = 'none';
+}
+
+function fmHeart() {
+  var s = queue[currentIdx]; if (!s || !_fmActive) return;
+  var list = loadStash();
+  var key = (s.source || 'youtube') + ':' + s.videoId;
+  var i = list.findIndex(function(t) { return stashKeyOf(t) === key; });
+  var btn = document.getElementById('fm-heart-btn');
+  if (i >= 0) {
+    list.splice(i, 1); saveStash(list);
+    toast('rimossa dalla playlist MIA');
+    btn.classList.remove('on'); btn.innerHTML = '&#9825; SALVA';
+  } else {
+    list.unshift({ videoId: s.videoId, source: s.source || 'youtube', title: (s.author ? s.author + ' - ' : '') + (s.title || ''), author: s.author || '', thumb: s.thumb || '' });
+    saveStash(list);
+    toast('♥ salvata — la trovi nella playlist MIA della tua crew');
+    btn.classList.add('on'); btn.innerHTML = '&#9829; SALVATA';
+  }
+}
+
+function fmSkip() {
+  if (!queue.length) return;
+  stopProgress();
+  _playNextAuto();
+}
+
+function fmToggleBandCard() {
+  var card = document.getElementById('fm-band-card');
+  if (card.style.display === 'block') { card.style.display = 'none'; return; }
+  var s = queue[currentIdx]; if (!s) return;
+  var b = s.fmBand || {};
+  var links = b.links || {};
+  var lk = Object.keys(links).filter(function(k) { return links[k]; }).map(function(k) {
+    return '<a href="' + escHtml(String(links[k])) + '" target="_blank" rel="noopener">' + escHtml(k) + '</a>';
+  }).join(' · ');
+  card.innerHTML = '<p style="color:var(--accent);font-size:13px;">' + escHtml(b.name || s.author || '') + '</p>'
+    + (b.city ? '<p>' + escHtml(b.city + (b.country && b.country !== 'IT' ? ' · ' + b.country : '')) + '</p>' : '')
+    + (b.bio ? '<p>' + escHtml(b.bio) + '</p>' : '')
+    + (lk ? '<p>' + lk + '</p>' : '')
+    + '<p style="color:#555;">band su UNDR FOR CREATOR</p>';
+  card.style.display = 'block';
+}
 </script>
 <script src="https://www.youtube.com/iframe_api"></script>
 
