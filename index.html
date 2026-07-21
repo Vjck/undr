@@ -4403,9 +4403,9 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
       <div id="saved-crews-host"></div>
     </div>
 
-    <button id="fm-open-btn" onclick="openFM()" style="width:100%;margin-top:10px;background:transparent;border:1px solid rgba(200,245,58,0.5);border-radius:22px;padding:13px;cursor:pointer;font-family:var(--mono);">
-      <span style="color:var(--accent);font-size:12px;letter-spacing:0.15em;">((&middot;)) UNDR FM</span>
-      <span style="display:block;color:rgba(200,245,58,0.45);font-size:10px;letter-spacing:0.08em;margin-top:3px;">RADIO BAND EMERGENTI &middot; SENZA CREW</span>
+    <button id="fm-open-btn" class="btn-secondary" onclick="openFM()" style="margin-top:10px;line-height:1.5;">
+      ((&middot;)) UNDR FM
+      <span style="display:block;font-size:9px;opacity:0.65;letter-spacing:0.1em;margin-top:2px;">RADIO BAND EMERGENTI &middot; SENZA CREW</span>
     </button>
 
     <div style="margin-top:10px;">
@@ -4430,13 +4430,14 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
 .fm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
 .fm-back { background: transparent; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; color: var(--muted); font-family: var(--mono); font-size: 13px; padding: 8px 13px; cursor: pointer; }
 .fm-title { color: var(--accent); font-family: var(--mono); font-size: 14px; letter-spacing: 0.2em; }
-.fm-label { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; margin: 12px 0 8px; }
-.fm-chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.fm-chip { background: transparent; border: 1px solid rgba(255,255,255,0.14); border-radius: 12px; color: #888; font-family: var(--mono); font-size: 12px; padding: 8px 13px; cursor: pointer; }
-.fm-chip.on { background: var(--accent); border-color: var(--accent); color: #080808; }
-.fm-sub { display: block; width: 100%; text-align: left; background: transparent; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #888; font-family: var(--mono); font-size: 12px; padding: 10px 13px; cursor: pointer; margin-bottom: 6px; }
-.fm-sub.on { border-color: var(--accent); color: var(--accent); }
-#fm-tune-btn { width: 100%; background: var(--accent); color: #080808; border: none; border-radius: 22px; padding: 16px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer; margin-top: 14px; }
+.fm-label { color: var(--muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; margin: 10px 0 2px; }
+.fm-picker { position: relative; display: flex; gap: 10px; height: 210px; margin: 4px 0 2px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); }
+.fm-picker::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 42px; transform: translateY(-50%); border-top: 1px solid rgba(200,245,58,0.5); border-bottom: 1px solid rgba(200,245,58,0.5); background: rgba(200,245,58,0.06); pointer-events: none; z-index: 2; }
+.fm-wheel { flex: 1; min-width: 0; overflow-y: scroll; scroll-snap-type: y mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 84px 0; overscroll-behavior: contain; }
+.fm-wheel::-webkit-scrollbar { display: none; }
+.fm-wheel-item { height: 42px; line-height: 42px; scroll-snap-align: center; text-align: center; font-family: var(--mono); font-size: 14px; color: #565656; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; cursor: pointer; transition: color 0.15s, transform 0.15s; }
+.fm-wheel-item.sel { color: var(--accent); transform: scale(1.08); }
+#fm-tune-btn { width: 100%; background: var(--accent); color: #080808; border: none; border-radius: 4px; padding: 16px; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer; margin-top: 14px; }
 #fm-tune-btn:disabled { opacity: 0.25; cursor: default; }
 #fm-status { color: var(--muted); font-family: var(--mono); font-size: 11px; text-align: center; margin-top: 10px; min-height: 16px; }
 #fm-view-onair { display: none; }
@@ -4464,11 +4465,15 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
   </div>
 
   <div id="fm-view-tuner">
-    <div class="fm-label">GENERE</div>
-    <div id="fm-genres" class="fm-chips"></div>
-    <div class="fm-label" id="fm-subs-label" style="display:none;">CANALE</div>
-    <div id="fm-subs"></div>
-    <button id="fm-tune-btn" onclick="tuneFM()" disabled>&#9654; SINTONIZZATI</button>
+    <div style="display:flex;gap:10px;">
+      <div class="fm-label" style="flex:1;">GENERE</div>
+      <div class="fm-label" style="flex:1;">CANALE</div>
+    </div>
+    <div class="fm-picker">
+      <div class="fm-wheel" id="fm-wheel-genre"></div>
+      <div class="fm-wheel" id="fm-wheel-sub"></div>
+    </div>
+    <button id="fm-tune-btn" onclick="tuneFM()">&#9654; SINTONIZZATI</button>
     <div id="fm-status"></div>
   </div>
 
@@ -5203,17 +5208,17 @@ function openFM() {
   document.getElementById('screen-landing').classList.remove('active');
   document.getElementById('screen-fm').classList.add('active');
   _fmActive = true;
-  if (_fmGenres) { fmRenderGenres(); return; }
+  if (_fmGenres) { fmBuildPicker(); return; }
   var st = document.getElementById('fm-status');
   st.textContent = 'carico i canali…';
   Promise.all([fmFetch('/genres?select=*&order=position'), fmFetch('/subgenres?select=*&order=position')])
-    .then(function(res) { _fmGenres = res[0]; _fmSubs = res[1]; st.textContent = ''; fmRenderGenres(); })
+    .then(function(res) { _fmGenres = res[0]; _fmSubs = res[1]; st.textContent = ''; fmBuildPicker(); })
     .catch(function() {
       _fmGenres = FM_TREE_FALLBACK.g.map(function(x, i) { return { id: x[0], name: x[1], position: i }; });
       _fmSubs = [];
       FM_TREE_FALLBACK.g.forEach(function(g) { (FM_TREE_FALLBACK.s[g[0]] || []).forEach(function(s, i) { _fmSubs.push({ id: s[0], genre_id: g[0], name: s[1], position: i }); }); });
       st.textContent = '';
-      fmRenderGenres();
+      fmBuildPicker();
     });
 }
 
@@ -5241,26 +5246,64 @@ function fmStopRadio() {
   document.getElementById('fm-view-tuner').style.display = 'block';
 }
 
-function fmRenderGenres() {
-  var el = document.getElementById('fm-genres');
-  el.innerHTML = (_fmGenres || []).map(function(g) {
-    return '<button class="fm-chip' + (_fmGenre === g.id ? ' on' : '') + '" onclick="fmPickGenre(\'' + g.id + '\')">' + escHtml(g.name) + '</button>';
-  }).join('');
-  fmRenderSubs();
+// Rotelle stile iPhone (scroll-snap + rilevamento elemento centrato)
+var FM_WHEEL_ITEM_H = 42;
+var _fmWheelTimers = {};
+
+function fmBuildPicker() {
+  if (_fmGenres && _fmGenres.length && !_fmGenre) _fmGenre = _fmGenres[0].id;
+  fmBuildWheel('fm-wheel-genre', (_fmGenres || []).map(function(g) { return [g.id, g.name]; }), function(item) {
+    if (_fmGenre === item[0]) return;
+    _fmGenre = item[0]; _fmSub = null;
+    fmBuildSubWheel();
+  });
+  fmBuildSubWheel();
 }
-function fmPickGenre(id) { _fmGenre = id; _fmSub = null; fmRenderGenres(); }
-function fmRenderSubs() {
-  var lab = document.getElementById('fm-subs-label');
-  var el = document.getElementById('fm-subs');
-  var btn = document.getElementById('fm-tune-btn');
-  if (!_fmGenre) { lab.style.display = 'none'; el.innerHTML = ''; btn.disabled = true; return; }
-  lab.style.display = 'block';
-  el.innerHTML = (_fmSubs || []).filter(function(s) { return s.genre_id === _fmGenre; }).map(function(s) {
-    return '<button class="fm-sub' + (_fmSub === s.id ? ' on' : '') + '" onclick="fmPickSub(\'' + s.id + '\')">' + escHtml(s.name) + '</button>';
-  }).join('');
-  btn.disabled = !_fmSub;
+
+function fmBuildSubWheel() {
+  var subs = (_fmSubs || []).filter(function(s) { return s.genre_id === _fmGenre; });
+  _fmSub = subs.length ? subs[0].id : null;
+  fmBuildWheel('fm-wheel-sub', subs.map(function(s) { return [s.id, s.name]; }), function(item) {
+    _fmSub = item[0];
+  });
 }
-function fmPickSub(id) { _fmSub = id; fmRenderSubs(); }
+
+function fmBuildWheel(wheelId, items, onSelect) {
+  var wheel = document.getElementById(wheelId);
+  if (!wheel) return;
+  wheel._fmItems = items;
+  wheel._fmOnSelect = onSelect;
+  wheel.innerHTML = items.map(function(it, i) {
+    return '<div class="fm-wheel-item" data-i="' + i + '">' + escHtml(it[1]) + '</div>';
+  }).join('');
+  wheel.scrollTop = 0;
+  fmWheelMark(wheel, 0);
+  if (!wheel._fmBound) {
+    wheel._fmBound = true;
+    wheel.addEventListener('scroll', function() {
+      fmWheelMark(wheel, Math.round(wheel.scrollTop / FM_WHEEL_ITEM_H));
+      clearTimeout(_fmWheelTimers[wheelId]);
+      _fmWheelTimers[wheelId] = setTimeout(function() {
+        var n = (wheel._fmItems || []).length;
+        var i = Math.max(0, Math.min(n - 1, Math.round(wheel.scrollTop / FM_WHEEL_ITEM_H)));
+        var it = (wheel._fmItems || [])[i];
+        if (it && wheel._fmOnSelect) wheel._fmOnSelect(it);
+      }, 130);
+    }, { passive: true });
+    wheel.addEventListener('click', function(e) {
+      var t = e.target.closest('.fm-wheel-item'); if (!t) return;
+      wheel.scrollTo({ top: (+t.getAttribute('data-i')) * FM_WHEEL_ITEM_H, behavior: 'smooth' });
+    });
+  }
+}
+
+function fmWheelMark(wheel, idx) {
+  var kids = wheel.children;
+  for (var i = 0; i < kids.length; i++) {
+    if (kids[i].classList) kids[i].classList.toggle('sel', i === idx);
+  }
+}
+
 function fmSubName(id) { var s = (_fmSubs || []).find(function(x) { return x.id === id; }); return s ? s.name : ''; }
 function fmGenreName(id) { var g = (_fmGenres || []).find(function(x) { return x.id === id; }); return g ? g.name : ''; }
 
