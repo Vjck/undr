@@ -3112,7 +3112,7 @@ function log(msg) { /* console.log('[UNDR]', msg); */ }
 const LANGS = {
   it: { code:'IT', flag:'IT', flagColor:'#009246', name:'Italiano',
     tagline:'under the radar · ascolta libero · crew only',
-    aliasPlaceholder:'alias — es: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'password crew (opzionale)',
     makeCrewBtn:'CREA CREW',
     divider:'entra in una crew',
@@ -3161,7 +3161,7 @@ const LANGS = {
   },
   en: { code:'EN', flag:'EN', flagColor:'#CF111A', name:'English',
     tagline:'under the radar · listen free · crew only',
-    aliasPlaceholder:'alias — e.g: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'crew password (optional)',
     makeCrewBtn:'MAKE CREW',
     divider:'join a crew',
@@ -3209,7 +3209,7 @@ const LANGS = {
   },
   es: { code:'ES', flag:'ES', flagColor:'#AA151B', name:'Español',
     tagline:'bajo el radar · escucha libre · solo grupo',
-    aliasPlaceholder:'alias — ej: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'contraseña grupo (opcional)',
     makeCrewBtn:'CREAR GRUPO',
     divider:'unirse a una grupo',
@@ -3257,7 +3257,7 @@ const LANGS = {
   },
   fr: { code:'FR', flag:'FR', flagColor:'#002395', name:'Français',
     tagline:'sous le radar · écoute libre · groupe only',
-    aliasPlaceholder:'alias — ex: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'mot de passe groupe (optionnel)',
     makeCrewBtn:'CRÉER GROUPE',
     divider:'rejoindre une groupe',
@@ -3305,7 +3305,7 @@ const LANGS = {
   },
   de: { code:'DE', flag:'DE', flagColor:'#000000', name:'Deutsch',
     tagline:'unter dem radar · frei hören · gruppe only',
-    aliasPlaceholder:'alias — z.B: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'gruppe-passwort (optional)',
     makeCrewBtn:'GRUPPE ERSTELLEN',
     divider:'einer gruppe beitreten',
@@ -3353,7 +3353,7 @@ const LANGS = {
   },
   pt: { code:'PT', flag:'BR', flagColor:'#009C3B', name:'Português',
     tagline:'sob o radar · ouça livre · grupo only',
-    aliasPlaceholder:'alias — ex: dark_wave42',
+    aliasPlaceholder:'alias',
     createPwd:'senha da grupo (opcional)',
     makeCrewBtn:'CRIAR GRUPO',
     divider:'entrar em uma grupo',
@@ -3401,7 +3401,7 @@ const LANGS = {
   },
   zh: { code:'ZH', flag:'CN', flagColor:'#DE2910', name:'中文',
     tagline:'低调听乐 · 自由收听 · 仅限群组',
-    aliasPlaceholder:'别名 — 例: dark_wave42',
+    aliasPlaceholder:'别名',
     createPwd:'群组密码（可选）',
     makeCrewBtn:'创建 群组',
     divider:'加入群组',
@@ -3449,7 +3449,7 @@ const LANGS = {
   },
   ar: { code:'AR', flag:'AR', flagColor:'#007A3D', name:'العربية',
     tagline:'تحت الرادار · استمع بحرية · مجموعة فقط',
-    aliasPlaceholder:'اسم مستعار — مثال: dark_wave42',
+    aliasPlaceholder:'اسم مستعار',
     createPwd:'كلمة مرور الكرو (اختياري)',
     makeCrewBtn:'إنشاء مجموعة',
     divider:'انضم إلى كرو',
@@ -3497,7 +3497,7 @@ const LANGS = {
   },
   hi: { code:'HI', flag:'IN', flagColor:'#FF9933', name:'हिन्दी',
     tagline:'अंडर द रडार · आज़ाद सुनो · क्रू ओनली',
-    aliasPlaceholder:'उपनाम — उदा: dark_wave42',
+    aliasPlaceholder:'उपनाम',
     createPwd:'क्रू पासवर्ड (वैकल्पिक)',
     makeCrewBtn:'क्रू बनाएं',
     divider:'क्रू में शामिल हों',
@@ -3545,7 +3545,7 @@ const LANGS = {
   },
   ru: { code:'RU', flag:'RU', flagColor:'#D52B1E', name:'Русский',
     tagline:'под радаром · слушай свободно · только группа',
-    aliasPlaceholder:'псевдоним — напр: dark_wave42',
+    aliasPlaceholder:'псевдоним',
     createPwd:'пароль группы (необязательно)',
     makeCrewBtn:'СОЗДАТЬ ГРУППУ',
     divider:'войти в группу',
@@ -3593,7 +3593,7 @@ const LANGS = {
   },
   ja: { code:'JA', flag:'JP', flagColor:'#BC002D', name:'日本語',
     tagline:'レーダーの下 · 自由に聴く · クルーのみ',
-    aliasPlaceholder:'エイリアス — 例: dark_wave42',
+    aliasPlaceholder:'エイリアス',
     createPwd:'クルーパスワード（任意）',
     makeCrewBtn:'クルー作成',
     divider:'クルーに参加',
@@ -4383,7 +4383,7 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
   <div id="undr-form-area">
     <div id="panel-join" class="mode-panel">
       <div style="margin-bottom:10px;position:relative;">
-        <input class="input-field" id="username-input" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('room-code-input').focus();}" onfocus="if(this.dataset.auto){this.value='';this.dataset.auto='';}this.placeholder=''" oninput="this.dataset.auto=''" onblur="var v=getLang?getLang().aliasPlaceholder:'alias';this.placeholder=v;" placeholder="alias — es: dark_wave42" maxlength="20" style="width:100%;text-align:center;">
+        <input class="input-field" id="username-input" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('room-code-input').focus();}" onfocus="if(this.dataset.auto){this.value='';this.dataset.auto='';}this.placeholder=''" oninput="this.dataset.auto=''" onblur="var v=getLang?getLang().aliasPlaceholder:'alias';this.placeholder=v;" placeholder="alias" maxlength="20" style="width:100%;text-align:center;">
         <button onclick="setRandomAlias()" title="alias casuale" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;opacity:0.4;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">
           <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="#c8f53a" stroke-width="1.6" stroke-linecap="round"><path d="M10 6 C10 6 8 1 4 1 C1 1 1 11 4 11 C8 11 10 6 10 6 C10 6 12 1 16 1 C19 1 19 11 16 11 C12 11 10 6 10 6 Z"/></svg>
         </button>
