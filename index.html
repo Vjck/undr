@@ -22,8 +22,8 @@
   --surface: #0f0f0f;
   --surface2: #141414;
   --text: #e0e0e0;
-  --muted: #444;
-  --muted2: #222;
+  --muted: #949494;
+  --muted2: #5f5f5f;
   --accent: #c8f53a;
   --danger: #ff4d4d;
   --sep: rgba(200,245,58,0.18);
@@ -740,7 +740,9 @@ function suggestAlias() {
   return adj + '_' + noun + num;
 }
 function setRandomAlias() {
-  document.getElementById('username-input').value = suggestAlias();
+  var _uin = document.getElementById('username-input');
+  _uin.value = suggestAlias();
+  _uin.dataset.auto = ''; // scelto col dado: lo teniamo, non si auto-cancella al focus
   // Pulisci storico crew
   const joinEl = document.getElementById('recent-crews-join');
   const hostEl = document.getElementById('saved-crews-host');
@@ -1498,9 +1500,11 @@ function _doLeave() {
   // restore saved alias (don't reset to random)
   try {
     const savedAlias = localStorage.getItem('undr-alias');
-    document.getElementById('username-input').value = (savedAlias && validateAlias(savedAlias).ok) ? savedAlias : suggestAlias();
+    const _uin = document.getElementById('username-input');
+    if (savedAlias && validateAlias(savedAlias).ok) { _uin.value = savedAlias; _uin.dataset.auto = ''; }
+    else { _uin.value = suggestAlias(); _uin.dataset.auto = '1'; }
   } catch(e) {
-    document.getElementById('username-input').value = suggestAlias();
+    var _uin2 = document.getElementById('username-input'); _uin2.value = suggestAlias(); _uin2.dataset.auto = '1';
   }
 }
 
@@ -3889,9 +3893,11 @@ self.addEventListener('fetch', e => {
   // Restore saved alias or suggest random
   try {
     const savedAlias = localStorage.getItem('undr-alias');
-    document.getElementById('username-input').value = (savedAlias && validateAlias(savedAlias).ok) ? savedAlias : suggestAlias();
+    const _uin = document.getElementById('username-input');
+    if (savedAlias && validateAlias(savedAlias).ok) { _uin.value = savedAlias; _uin.dataset.auto = ''; }
+    else { _uin.value = suggestAlias(); _uin.dataset.auto = '1'; }
   } catch(e) {
-    document.getElementById('username-input').value = suggestAlias();
+    var _uin2 = document.getElementById('username-input'); _uin2.value = suggestAlias(); _uin2.dataset.auto = '1';
   }
 
   // splash rimosso
@@ -3954,7 +3960,7 @@ function startLandingAnimation() {
 
   var ctx = canvas.getContext('2d');
   var cx = W / 2;
-  var cy = H * 0.44;
+  var cy = H * 0.68; // logo abbassato: centrato otticamente nel vuoto tra le icone in alto e il campo alias
   var FS = Math.floor(W * 0.245);
 
   function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
@@ -4044,7 +4050,8 @@ function startLandingAnimation() {
     if (pLine > 0) {
       ctx.globalAlpha = alpha * Math.min(pLine * 3, 1);
       ctx.fillStyle = '#c8f53a';
-      ctx.fillRect(textLeft, horizY + FS * 0.18, lerp(0, totalW, pLine), Math.max(1.5, FS*0.038));
+      var lineFullW = totalW + barZone + lockGap; // dalla prima barra EQ fino alla fine di "UNDR"
+      ctx.fillRect(lockLeft, horizY + FS * 0.18, lerp(0, lineFullW, pLine), Math.max(1.5, FS*0.038));
     }
     ctx.restore();
 
@@ -4376,7 +4383,7 @@ function toggleCrewPanel() {  var panel = document.getElementById('chat-crew-pan
   <div id="undr-form-area">
     <div id="panel-join" class="mode-panel">
       <div style="margin-bottom:10px;position:relative;">
-        <input class="input-field" id="username-input" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('room-code-input').focus();}" onfocus="this.placeholder=''" onblur="var v=getLang?getLang().aliasPlaceholder:'alias';this.placeholder=v;" placeholder="alias — es: dark_wave42" maxlength="20" style="width:100%;text-align:center;">
+        <input class="input-field" id="username-input" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('room-code-input').focus();}" onfocus="if(this.dataset.auto){this.value='';this.dataset.auto='';}this.placeholder=''" oninput="this.dataset.auto=''" onblur="var v=getLang?getLang().aliasPlaceholder:'alias';this.placeholder=v;" placeholder="alias — es: dark_wave42" maxlength="20" style="width:100%;text-align:center;">
         <button onclick="setRandomAlias()" title="alias casuale" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;opacity:0.4;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">
           <svg width="20" height="12" viewBox="0 0 20 12" fill="none" stroke="#c8f53a" stroke-width="1.6" stroke-linecap="round"><path d="M10 6 C10 6 8 1 4 1 C1 1 1 11 4 11 C8 11 10 6 10 6 C10 6 12 1 16 1 C19 1 19 11 16 11 C12 11 10 6 10 6 Z"/></svg>
         </button>
